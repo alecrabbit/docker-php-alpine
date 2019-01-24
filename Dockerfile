@@ -3,13 +3,15 @@ LABEL Description="Application container"
 
 ENV PS1='\[\033[1;32m\]🐳 \[\033[1;36m\][\u\033[38;05;224m@\h\[\033[1;36m\]] \[\033[1;34m\]\w\[\033[0;35m\] \[\033[1;36m\]# \[\033[0m\]'
 
-ENV COMPOSER_VERSION 1.7.2
 ## Looked here: <https://github.com/prooph/docker-files/blob/master/php/7.2-cli>
 ENV PHP_REDIS_VERSION 4.1.1
+ENV PHP_PTHREADS_VERSION 3.2.0
 
 ENV COMPOSER_ALLOW_SUPERUSER 1
 ENV COMPOSER_HOME /tmp
 ENV PATH /scripts:/scripts/aliases:$PATH
+
+ADD composer.sh /
 
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
@@ -123,6 +125,15 @@ RUN apk add --no-cache --virtual .persistent-deps \
         && make install \
         && make test \
         && echo 'extension=redis.so' > /usr/local/etc/php/conf.d/redis.ini \
+    # pthreads
+    # && git clone --branch ${PHP_PTHREADS_VERSION} https://github.com/krakjoe/pthreads.git /tmp/pthreads \
+    #     && cd /tmp/pthreads \
+    #     && phpize  \
+    #     && ./configure  \
+    #     && make  \
+    #     && make install \
+    #     && make test \
+    #     && echo 'extension=pthreads.so' > /usr/local/etc/php/conf.d/pthreads.ini \
     && apk del .build-deps \
     && rm -rf /tmp/* \
     && rm -rf /app \
@@ -137,10 +148,8 @@ RUN apk add --no-cache --virtual .persistent-deps \
     && rm -f /usr/local/etc/php-fpm.d/* \
     && mkdir -p "$COMPOSER_HOME" \
     # install composer
-    && php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');" \
-    && php -r "if(hash_file('SHA384','/tmp/composer-setup.php')==='93b54496392c062774670ac18b134c3b3a95e5a5e5c8'.\
-    'f1a9f115f203b75bf9a129d5daa8ba6a13e2cc8a1da0806388a8'){echo 'Verified';}else{echo 'Installer corrupt';unlink('/tmp/composer-setup.php');} echo PHP_EOL;" \
-    && php /tmp/composer-setup.php --no-ansi --install-dir=/usr/bin --filename=composer --version=$COMPOSER_VERSION \
+    && /composer.sh "$COMPOSER_HOME" \
+    && rm -f /composer.sh \
     && composer --ansi --version --no-interaction \
     && composer --no-interaction global require 'hirak/prestissimo' \
     && composer --no-interaction global require 'localheinz/composer-normalize' \
